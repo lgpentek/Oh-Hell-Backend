@@ -3,14 +3,16 @@ const shortid = require("shortid");
 const router = express.Router();
 const Game = require("../game/game.js");
 const mongoose = require("mongoose");
-/*let db = mongoose.connection;
+/*
+let db = mongoose.connection;
 
 mongoose.connect('mongodb://localhost:5000');
 
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function() {
   console.log("Users routes are connected!")
-});*/
+});
+*/
 
 const User = mongoose.model("User");
 
@@ -223,6 +225,7 @@ router.get("/:id/hand", (req, res, next) => {
  */
 router.put("/:id/bet", (req, res, next) => {
   let currentGame = activeGames.get(req.params.id);
+  res.send("Tippelj!");
   let userID = req.user._id;
   let betAmount = req.body.bet;
   let message = currentGame.bet(userID, +betAmount);

@@ -1,3 +1,6 @@
+const Card = require("./card.js");
+
+
 class Deck{
 
   constructor() {
@@ -23,6 +26,7 @@ class Deck{
       const card = this.dealer.next();
       hand.push(card.value);
     }
+    hand.sort(function(a, b){return a.suit !== b.suit ? Card.suits.indexOf(a.suit)-Card.suits.indexOf(b.suit) : Card.values.indexOf(a.value) - Card.values.indexOf(b.value) });
     return hand;
   }
 
