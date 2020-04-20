@@ -1,6 +1,7 @@
 const Deck = require("./deck.js");
 const Player = require("./player.js");
 const Card = require("./card.js");
+var JSAlert = require("js-alert");
 
 class Game {
   constructor(id, owner, gameName, password) {
@@ -16,12 +17,15 @@ class Game {
       invitations: [],
       maxHandSize: 0,
       cardsInPlay: new Map(), //map to guarantee property order
+      firstCards: new Map(),
       betting: false,
       dealer: null,
+      gameTitle: "KaranténRikiki",
       trumpCard: null,
       deck: null,
       scores: { round: {} },
       bets: {},
+      betSum: 0,
       handSize: 0,
       tricks: new Map(),
       id: id,
@@ -49,11 +53,18 @@ class Game {
         ] = this.state.scores.round[round][playerID];
       }
     }
+
+    exportedState.firstCards = {};
+    this.state.firstCards.forEach((card, player) => {
+      exportedState.firstCards[this.getPlayer(player)] = card;
+    });
+
     exportedState.cardsInPlay = {};
     this.state.cardsInPlay.forEach((card, player) => {
       exportedState.cardsInPlay[this.getPlayer(player).username] = card;
     });
     exportedState.dealer = this.getPlayer(this.state.dealer).username;
+    exportedState.gameTitle = this.state.gameTitle;
     exportedState.trumpCard = this.state.trumpCard;
     exportedState.tricks = {};
     this.state.tricks.forEach((tricks, player) => {
@@ -137,6 +148,7 @@ class Game {
   //all plays must be associated with a player to enforcce turns
   play(player, cardID) {
     let message;
+    let szin;
     if (player && cardID) {
       let card;
       //so function can accept id string or player object
@@ -148,17 +160,29 @@ class Game {
         player === this.state.turn &&
         (card = player.play(cardID))
       ) {
-        message = `${player.username} played ${card.value} of ${card.suit}`;
+        if ( card.suit == "Clubs" )
+          szin="Treff";
+        else if ( card.suit == "Diamonds" )
+          szin="Káró";
+          else if ( card.suit == "Hearts" )
+          szin="Kőr";
+          else if ( card.suit == "Spades" )
+          szin="Pikk";
+
+          
+
+      
+        message = `${player.username} ${szin} ${card.value}-t rakott.`;
         this.state.messages.push(message);
         this.state.cardsInPlay.set(player.id, card);
         this.state.roundHandler.next();
       } else {
         if (player !== this.state.turn) {
-          message = `Sorry it's ${this.state.turn.username}'s turn to play`;
+          message = "Nyugi mááá!" /*`Bocs, de ${this.state.turn.username} van soron.`*/;
         } else if (this.state.betting) {
-          message = "The game is only accepting bets at this time";
+          message = "Jelenleg csak tippelhetsz!";
         } else {
-          message = "You can not play that.";
+          message = "Már megint rosszra gondolsz!";
         }
       }
     } else {
@@ -176,15 +200,19 @@ class Game {
         player = this.getPlayer(player);
       }
       if (
-        player === this.state.turn &&
+        /*player === this.state.turn &&*/
         bet <= this.state.handSize &&
         bet >= 0 &&
         Number.isInteger(bet) &&
         this.state.betting
       ) {
         this.state.bets[player.id] = bet;
+        this.state.betSum += bet;
         this.state.roundHandler.next();
-        message = `${player.username} bet ${bet}`;
+//plg        message = `${player.username} bet ${bet}`;
+
+       // this.state.betSum += bet;
+        message = `${player.username} tippelt`;
         this.state.messages.push(message);
       } else {
         if (player !== this.state.turn) {
@@ -202,9 +230,46 @@ class Game {
   deal(numCards) {
     this.state.deck.reset();
     this.state.deck.shuffle();
+    this.state.cardsInPlay.clear();
+    let message = "";
     for (let player of this.state.players) {
       player.hand = this.state.deck.deal(numCards);
+      console.log(`${player.username} egyetlen lapja`);
+      console.log(`${player.username} egyetlen lapja: ${player.hand[0].id}`);
+      this.state.firstCards.set(player.username, player.hand[0].id);
+      if (numCards == 1) {
+        /* Ahhoz, hogy lássuk az első körben a többiek lapjait, itt beletesszük már
+           osztásnál a lapjukat a cardsInPlay-be! A konkrét 1 lapos játék előtt
+           újra inicializálni kell a cardsInPlay-t! */
+        this.state.cardsInPlay.set(player.id, player.hand[0]);
+
+        let card = this.state.cardsInPlay.get(player.id);
+        console.log(`${player.username} played(egyetlen lapja): ${card.id}`);
+
+      }
+
+/*
+      let card;
+      for (let entry of this.state.firstCards.entries()) {
+        if (!(entry[0] === player.username) && (numCards ==1)) {
+          card = entry[1];
+          console.log(`${player.username} egyetlen lapja ${card}`);
+          message = `${message} ${player.username} egyetlen lapja ${card} \n`;
+          this.state.messages.push(message);
+    
+        }
+      }
+
+*/
     }
+ /*   if (numCards == 1) {
+      console.log(`Alert.send:`);
+//      res.send("Alert.send backendtől");
+
+      console.log(`Alert.send: ${message}`);
+//      res.send({ alert: message });
+    }
+*/
     this.state.trumpCard = this.state.deck.deal(1)[0];
   }
 
@@ -243,13 +308,14 @@ class Game {
         ? round
         : this.state.maxHandSize - round % this.state.maxHandSize;
       this.state.handSize = numCards;
+      this.state.gameTitle = 'KaranténRikiki';
       this.state.dealer = dealerHandler.next().value;
       console.log(`## DEALER: ${this.getPlayer(this.state.dealer).username} `);
       console.log("## DEALING OUT: " + numCards);
       this.deal(numCards);
-      console.log(
-        `## TRUMP CARD IS ${this.state.trumpCard.value} of ${this.state.trumpCard.suit}`
-      );
+     //plg console.log(
+     //plg   `## TRUMP CARD IS ${this.state.trumpCard.value} of ${this.state.trumpCard.suit}`
+     //plg );
       this.state.betting = true;
       let betting = this.BetHandler();
       //yield;
@@ -259,6 +325,21 @@ class Game {
         bet = betting.next();
       }
       this.state.betting = false;
+      //plg Ide rakjuk a tippelés utáni cardsInPlay inicializálását. (Amit arra használtunk, hogy
+      //plg egylapos játéknál lássuk az ellenfelek lapjait.
+      console.log(`_cards_In_Play_ inicializálása a BetHandlerben`);
+      if (numCards==1)
+        this.state.cardsInPlay.clear();
+
+      console.log(`Vállalás: ${this.state.betSum} a ${numCards} lapra`);
+ 
+      if (numCards > this.state.betSum)
+        this.state.gameTitle = "Tukma: " + this.state.betSum + " a " + numCards + " lapra";
+      else if (numCards == this.state.betSum)
+        this.state.gameTitle = "Unalom: " + this.state.betSum + " a " + numCards + " lapra";
+      else
+        this.state.gameTitle = "Küzdés: " + this.state.betSum + " a " + numCards + " lapra";
+ 
       let tricks = this.TrickHandler(numCards);
       let trick = tricks.next();
       while (!trick.done) {
@@ -280,14 +361,23 @@ class Game {
     const offset = this.state.players.findIndex(
       player => player.id === this.state.dealer
     );
+    this.state.betSum = 0;
     for (let i = 1; i <= this.state.players.length; i++) {
       let player = this.state.players[(i + offset) % this.state.players.length];
       this.state.turn = player;
       console.log(`${player.username}'s turn to bet`);
       yield;
       console.log(`${player.username} bet ${this.state.bets[player.id]}`);
+
+      //      Ezt átraktam a bet() függvénybe, ott egyértelmű az értéke. Itt a player.id nem stimmelt.
+      //      this.state.betSum += this.state.bets[player.id];
     }
-  }
+    
+    /* Az egylapos játszmákhoz tippelésnél CardsInPlay-ben adtuk át az ellenfelek lapjait,
+       ezért itt inicializálni kell! 
+    console.log(`_cards_In_Play_ inicializálása a BetHandlerben`);
+    this.state.cardsInPlay.clear(); */
+  } 
 
   //plays out a given round and tricks
   *TrickHandler(numCards) {
@@ -311,7 +401,18 @@ class Game {
       const winningPlayer = this.getPlayer(winnerID);
       offset = this.state.players.findIndex(player => player.id === winnerID);
       const winningCard = this.state.cardsInPlay.get(winnerID);
-      message = `${winningPlayer.username} won with ${winningCard.value} of ${winningCard.suit}`;
+      let szin;
+      if ( winningCard.suit == "Clubs" )
+        szin="Treff";
+      else if ( winningCard.suit == "Diamonds" )
+        szin="Káró";
+      else if ( winningCard.suit == "Hearts" )
+       szin="Kőr";
+      else if ( winningCard.suit == "Spades" )
+        szin="Pikk";
+
+
+      message = `${winningPlayer.username} vitt. Ütő lap: ${szin} ${winningCard.value}`;
       this.state.messages.push(message);
       console.log(
         `${this.getPlayer(winnerID).username} won with ${winningCard.value} of ${winningCard.suit}`
@@ -356,7 +457,12 @@ class Game {
       ) {
         this.state.scores.round[this.state.round][playerID] = 10;
       } else {
-        this.state.scores.round[this.state.round][playerID] = 0;
+        let utes;
+        if (this.state.tricks.get(playerID) === undefined)
+          utes = 0;
+        else
+          utes = this.state.tricks.get(playerID);
+        this.state.scores.round[this.state.round][playerID] = -2 * Math.abs(utes-this.state.bets[playerID] );
       }
     }
   }
